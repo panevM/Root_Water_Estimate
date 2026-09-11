@@ -1,23 +1,36 @@
-# Root Zone Water Estimation with Satellite Data
+# Процена на водата во кореновата зона со сателитски податоци
 
-A speculative root-zone water estimator for students studying probabilistic robotics.
-The teaching crop is **assumed spring wheat with zero assumed irrigation**. The configured field
-near Skopje is unverified; neither crop nor management is known. No field-measured
-root-zone observations exist. Agreement with an NDMI heuristic cannot establish field accuracy.
+Ова е самостоен образовен проект за студенти по веројатносна роботика и процена на состојба.
+Целта е да се процени вкупното количество вода во кореновата зона на растението, изразено
+во милиметри, преку дневен биланс на вода и повремени сателитски набљудувања.
 
-## Current delivery status
+Метеоролошките податоци од Open-Meteo го придвижуваат моделот. Од сателитските податоци
+на Sentinel-2 се пресметуваат NDVI и NDMI. NDMI потоа се претвора во **индиректна процена
+на количеството вода**, со која EKF и UKF ја коригираат претходната процена. Бележникот ги споредува:
 
-The default cache contains **90 genuine Open-Meteo ERA5 daily weather records and 45
-Sentinel-2 daily satellite records**, covering 2025-05-01 through 2025-07-29, UTC.
-After quality filtering, 26 NDMI observations are accepted and 19 are retained as rejected
-records with their reasons. No measurements or timestamps are invented. The notebook uses
-this saved dataset for reproducible offline runs; the root-zone estimate remains speculative
-because no field-measured soil-water ground truth is available.
+- Процената само со моделот, без корекција со набљудувања — `open_loop`.
+- Проширениот Калманов филтер — EKF.
+- Калмановиот филтер со сигма-точки — UKF.
 
-## Run
+**Пролетната пченица и отсуството на наводнување се претпоставки.** Конфигурираната област
+во близина на Скопје не е проверена како пченично поле. Нема теренски мерења на водата во
+кореновата зона. Проценувачот е спекулативен: согласувањето со процената добиена од NDMI
+не докажува точност на реалната вода во почвата.
 
-Use CPython 3.12 (standard Windows Python, rather than MSYS Python).
-From this directory:
+## Зачувани податоци
+
+Стандардниот сет во `data/refresh-wheat-2025-90d/` содржи **90 дневни метеоролошки записи
+од Open-Meteo ERA5** за периодот 2025-05-01–2025-07-29, во UTC, и **45 сателитски записи
+од Sentinel-2**. Според правилата за квалитет, 26 NDMI набљудувања се прифатени, а 19 записи
+се задржани како отфрлени со наведени причини.
+
+Недостасувачките набљудувања не се заменуваат со измислени мерења. Бележниците го користат
+овој зачуван сет за повторливи офлајн пресметки, без акредитиви или преземање нови податоци.
+
+## Инсталација и извршување
+
+Користете CPython 3.12. На Windows користете ја стандардната Python инсталација, наместо
+варијантата од MSYS. Следните команди се извршуваат од папката:
 
 ```powershell
 py -3.12 -m venv .venv
@@ -27,60 +40,95 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python execute_notebook.py
 ```
 
-On macOS/Linux use `python3 -m venv .venv` and `.venv/bin/python` instead.
-Open `Root_Zone_Water_Estimation_with_Satellite_Data.ipynb` in a Jupyter-capable editor and select this environment
-for interactive Run All. `execute_notebook.py` executes a fresh kernel and replaces the
-notebook's saved outputs. It also blocks outbound network connects inside the kernel;
-local Jupyter communication remains available. Cached mode never loads `.env`.
-This implementation was tested using the local `.venv-win` environment; that environment
-is ignored and is not required by portable source paths.
+На macOS/Linux создајте ја околината со `python3 -m venv .venv` и користете
+`.venv/bin/python` наместо Windows патеката. Датотеката
+[requirements-tested.txt](requirements-tested.txt) ги наведува проверените верзии;
+[requirements.txt](requirements.txt) ги наведува дозволените опсези на верзии.
+Локалната околина `.venv-win` била користена за проверка и не е потребна како дел од проектот.
 
-`config.json` controls the crop, soil, assumed calendar, area, dates, prior, Q/R assumptions,
-quality policy, Kc mode, and selected filter. `root_zone_water.runner.run()` honors the configured
-filter; the notebook compares all three filter instances. Prediction outputs go to `outputs/`.
-The notebook figures are interactive Plotly charts: use the wheel or drag to zoom, the pan tool
-to move, double-click to reset, and legend clicks to hide or show traces. Each filter has its own
-figure and is exported as `outputs/open_loop-state.html`,
-`outputs/ekf-state.html`, and `outputs/ukf-state.html`, with Plotly embedded locally for offline use.
+## Notebooks
 
-## Contents
+Отворете го избраниот jupyter notebook, изберете ја создадената
+Python околина и извршете ги ќелиите по ред, со опцијата за извршување на сите ќелии.
 
-- `Root_Zone_Water_Estimation_with_Satellite_Data.ipynb`: equations, agriculture, provenance and executable comparisons.
-- `Root_Zone_Water_Estimation_with_Satellite_Data_mk.ipynb`: Macedonian translation of the same teaching notebook and calculations.
-- `Create_Custom_Dataset.ipynb`: generate a personal config, download a new dataset, and connect it to offline estimation.
-- `root_zone_water/model.py`, `proxy.py`: explicit daily water budget, active root depth and shared proxy.
-- `root_zone_water/filters/`: minimal scalar filter interface, course covariance update and UKF.
-- `root_zone_water/acquisition.py`, `data.py`: API acquisition and offline replay of raw responses.
-- `root_zone_water/runner.py`, `plotting.py`: chronological processing, diagnostics, figures and sensitivity.
-- `references/`: separate sourced crop/soil selections, with assumptions distinguished.
-- `docs/API_SETUP.md`: exact remaining satellite setup and capture commands.
-- `docs/DATASET.md`: schemas, provenance, timing, quality and cache contracts.
-- `docs/EXTENDING_FILTERS.md`: filter extension guidance.
+- [Македонски наставен бележник](Root_Zone_Water_Estimation_with_Satellite_Data_mk.ipynb):
+  објаснувања на македонски со истите пресметки и податоци.
+- [Англиски наставен бележник](Root_Zone_Water_Estimation_with_Satellite_Data.ipynb):
+  изворната англиска верзија.
+- [Notebook за сопствен сет податоци](Create_Custom_Dataset.ipynb):
+  избор на период и филтер, создавање конфигурација и преземање податоци.
 
-Open either notebook in Jupyter. To regenerate them from their authoring scripts, run
-`python build_notebook.py` for English or `python build_notebook_mk.py` for Macedonian.
-Both use the same `root_zone_water` modules and saved dataset; the Macedonian HTML figures
-use `-mk` filenames so they do not overwrite the English exports.
+## Конфигурација и пресметки
 
-The open-loop model, EKF and UKF use identical forcing policies. Each accepted acquisition
-is corrected once at its assigned day-end boundary. Newly observed NDVI can only affect the
-following interval. This retrospective calculation uses complete-day weather, not real-time forecasts.
+[config.json](config.json) ги задава културата, почвата, претпоставениот календар, областа,
+датумите, почетната процена, неизвесноста, правилата за квалитет, режимот на `Kc` и филтерот.
+Во употребената наставна нотација, `R_t` е процесна коваријанса, а `Q_t` е мерна коваријанса.
+Стандардните отстапувања и коваријансите се различни величини: за складирањето, единиците им
+се mm и mm².
 
-## Create a personal dataset
+Функцијата `root_zone_water.runner.run()` го користи избраниот филтер; бележникот ги
+споредува сите три. Сите добиваат исти метеоролошки влезови и исти правила за обработка.
+Прифатеното сателитско набљудување се користи за една корекција на доделениот крај на денот.
+Новата NDVI вредност може да влијае врз следниот интервал. Пресметката е ретроспективна,
+со метеоролошки податоци за целиот ден.
 
-Open `Create_Custom_Dataset.ipynb`. Edit `START_DATE`, `END_DATE`, `FILTER_NAME`,
-`DATASET_PATH` and `CONFIG_PATH`, then run the config-generation cell. It writes a
-portable project-relative config whose `cache_dir` points to the requested dataset.
-Set `RUN_DOWNLOAD = True` only after `ENV_FILE` contains valid CDSE credentials.
-The acquisition saves weather and satellite inputs, quality flags, catalog metadata,
-raw responses and checksums; it refuses to overwrite an existing destination.
+Резултатите и дијагностиката се запишуваат во `outputs/`. Математиката на моделот
+и филтрите е заедничка за двата јазика.
 
-After the download, inspect the manifest and run:
+## Интерактивни графици
+
+Графиците користат Plotly. Со тркалцето на глувчето или со влечење зумирате, со алатката
+за поместување ја поместувате видливата област, а со двоен клик го враќате погледот.
+Со клик на легендата ги сокривате или прикажувате соодветните криви.
+
+Секој филтер има посебен график со претходна и коригирана процена, условна неизвесност
+±2σ и индиректни процени од NDMI на датумите со набљудувања. Засенчените ленти ја
+претставуваат условната неизвесност на состојбата; мерната неизвесност се прикажува одделно
+во дополнителните информации при поставување на покажувачот. Графиците за иновациите и
+за чувствителноста исто така се прикажуваат одделно.
+
+Извозите `outputs/open_loop-state.html`, `outputs/ekf-state.html` и
+`outputs/ukf-state.html` содржат локално вграден Plotly и се отвораат офлајн.
+Македонските извозни датотеки имаат наставка `-mk.html`, на пример
+`outputs/ekf-state-mk.html`.
+
+## Создавање сопствен сет податоци
+
+1. Следете ги [упатствата за CDSE акредитиви](docs/mk/API_SETUP.md) и зачувајте ги локално во
+   `.env`, со имињата `SENTINEL_CLIENT_ID` и `SENTINEL_CLIENT_SECRET`.
+2. Отворете го [бележникот за сопствен сет](Create_Custom_Dataset.ipynb). Поставете
+   `START_DATE`, `END_DATE`, `FILTER_NAME`, `DATASET_PATH` и `CONFIG_PATH`.
+   Изборите за филтер се `ekf`, `ukf` и `open_loop`.
+3. Извршете ја ќелијата за конфигурација. Патеката кон сетот се запишува во `cache_dir`.
+   Проверете ги и наследените претпоставки за полигон, култура, сеидба и почва.
+4. Кога акредитивите се подготвени, поставете `RUN_DOWNLOAD = True` и извршете ја
+   ќелијата за преземање. Се зачувуваат суровите одговори, метаподатоците, ознаките за квалитет
+   и контролните суми. Постојна одредишна папка не се препишува.
+5. Проверете го манифестот, покриеноста со метеоролошки податоци и прифатените NDMI
+   набљудувања пред проценувањето.
 
 ```powershell
-.\.venv-win\Scripts\python.exe -m root_zone_water.runner --config config_my_dataset.json --output outputs/my-dataset
+.\.venv\Scripts\python -m root_zone_water.runner --config config_my_dataset.json --output outputs/my-dataset
 ```
 
-To use that dataset in the main notebook, copy the generated dates, filter and
-`cache_dir` into `config.json`, then run `execute_notebook.py`. The generated config
-does not contain credentials.
+За да го изберете сетот во jupyter notebooks-от, усогласете ги датумите, филтерот и
+`cache_dir` во `config.json` со создадената конфигурација и извршете ги ќелиите повторно.
+Создадената конфигурација не содржи тајни акредитиви.
+
+## Организација на проектот и документација
+
+- [root_zone_water/model.py](root_zone_water/model.py) и
+  [proxy.py](root_zone_water/proxy.py): дневен биланс и претворање NDMI во индиректна процена.
+- [root_zone_water/filters/](root_zone_water/filters/): заеднички скаларен интерфејс и филтри.
+- [acquisition.py](root_zone_water/acquisition.py) и [data.py](root_zone_water/data.py):
+  преземање преку API и офлајн обработка.
+- [runner.py](root_zone_water/runner.py) и [plotting.py](root_zone_water/plotting.py):
+  хронолошка пресметка, дијагностика и графици.
+- [references/](references/): извори за културата и почвата, со означени претпоставки.
+- [Поставување и преземање податоци](docs/mk/API_SETUP.md).
+- [Потекло на податоците, полиња и неизвесност](docs/mk/DATASET.md).
+- [Додавање нов филтер](docs/mk/EXTENDING_FILTERS.md).
+- [Извештај за проверка](docs/mk/VALIDATION.md).
+
+Македонските документи се во [docs/mk/](docs/mk/). Англиските изворни документи се задржани
+во [docs/](docs/). Изворите за Sentinel-2, CDSE, Open-Meteo, ERA5 и FAO се наведени во документацијата.
