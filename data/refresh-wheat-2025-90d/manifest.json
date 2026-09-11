@@ -1,0 +1,142 @@
+{
+  "processing_version": "aqua2-1",
+  "retrieved_at_utc": "2026-09-10T13:14:31.102352+00:00",
+  "status": "complete",
+  "config": {
+    "crop": "wheat",
+    "crop_status": "assumed",
+    "soil": "silt",
+    "irrigation_mode": "assumed_rainfed",
+    "irrigation_status": "assumed_rainfed",
+    "geometry_status": "unverified",
+    "geometry": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [
+            21.43,
+            41.99
+          ],
+          [
+            21.44,
+            41.99
+          ],
+          [
+            21.44,
+            42.0
+          ],
+          [
+            21.43,
+            42.0
+          ],
+          [
+            21.43,
+            41.99
+          ]
+        ]
+      ]
+    },
+    "start_date": "2025-05-01",
+    "end_date": "2025-07-29",
+    "timezone": "UTC",
+    "planting_date": "2025-04-01",
+    "kc_mode": "calendar",
+    "ndvi_max_age_days": 15,
+    "root_depth_scale": 1.0,
+    "precipitation_effectiveness": 1.0,
+    "initial_available_fraction": 0.5,
+    "initial_std_taw_fraction": 0.2886751345948129,
+    "process_std_taw_fraction": 0.02,
+    "proxy_model_std_taw_fraction": 0.2,
+    "ndmi_obs_std": 0.05,
+    "use_spatial_std_heuristic": true,
+    "m_dry": -0.1,
+    "m_wet": 0.45,
+    "clipped_R_multiplier": 2.0,
+    "weather_uncertainty": true,
+    "rain_std_mm": 1.0,
+    "et0_std_mm": 0.5,
+    "min_valid_fraction": 0.5,
+    "min_valid_pixels": 100,
+    "filter": "ekf",
+    "mode": "cached",
+    "cache_dir": "data/teaching-era5-2025",
+    "resolution_m": 20,
+    "projected_epsg": 32634,
+    "weather_model": "era5"
+  },
+  "weather_source": "https://archive-api.open-meteo.com/v1/archive",
+  "satellite_source": "https://sh.dataspace.copernicus.eu/api/v1/statistics",
+  "catalog_source": "https://sh.dataspace.copernicus.eu/catalog/v1/search",
+  "errors": [],
+  "grid": {
+    "projected_epsg": 32634,
+    "resolution_m": 20,
+    "polygon_area_m2": 919615.1206054688,
+    "expected_polygon_pixels_approx": 2299.037801513672,
+    "bbox_grid_pixels_approx": 2352,
+    "sample_count_note": "sampleCount includes noDataCount and bounding-grid pixels outside polygon; fractions use that conservative denominator"
+  },
+  "reference_selections": [
+    {
+      "crop": "wheat",
+      "subtype": "spring wheat",
+      "kc_initial": "0.30",
+      "kc_mid": "1.15",
+      "kc_end": "0.25",
+      "initial_days": "20",
+      "development_days": "30",
+      "mid_days": "60",
+      "late_days": "40",
+      "root_depth_m": "1.4",
+      "root_depth_reference_range_m": "1.0-1.5",
+      "p": "0.55",
+      "default_ndvi": "0.60",
+      "source": "https://www.fao.org/4/X0490E/x0490e0b.htm;https://www.fao.org/4/X0490E/x0490e0e.htm",
+      "notes": "FAO56 tables 11/12/22; April Mediterranean small-grain calendar transferred as teaching assumption; fixed mature effective depth even during development; legacy Kc_initial was 0.40"
+    },
+    {
+      "soil": "silt",
+      "theta_fc_m3m3": "0.32",
+      "theta_wp_m3m3": "0.15",
+      "theta_sat_m3m3": "0.46",
+      "drainage_fraction_day": "0.10",
+      "source": "https://www.fao.org/4/X0490E/x0490e0e.htm",
+      "notes": "FC/WP reference example36 table19 selections; saturation 0.46 is an explicit teaching porosity assumption; drainage retained legacy teaching value; no field measurements"
+    }
+  ],
+  "weather_days": 90,
+  "weather_returned_metadata": {
+    "latitude": 42.0,
+    "longitude": 21.5,
+    "utc_offset_seconds": 0,
+    "timezone": "GMT",
+    "timezone_abbreviation": "GMT",
+    "elevation": 240.0,
+    "daily_units": {
+      "time": "iso8601",
+      "precipitation_sum": "mm",
+      "rain_sum": "mm",
+      "snowfall_sum": "cm",
+      "et0_fao_evapotranspiration": "mm",
+      "temperature_2m_min": "\u00b0C"
+    }
+  },
+  "satellite_rows": 45,
+  "usable_ndmi_days": 26,
+  "files_sha256": {
+    "config.snapshot.json": "d3c36946efecf977c8cd2ae88d8e26dfb1fb0d67b202fea45e539c13e34d065e",
+    "geometry.geojson": "f4bbed6827f2bc4c0b4b9f5a963193020dd34bcc80ba119b8a2c1b328857691a",
+    "raw/catalog.json": "8c211ecadf447b90bc8a53b0d26a591d7d47a8ebabd1d9a26454e9a5fafd75e8",
+    "raw/ndmi.json": "15b41745e032a736e924a3b1ca8aa3913626b7fce0d11f8cf9338a0f8307d022",
+    "raw/ndmi.request.json": "daf37d099a16d3ccac017dde5b759e9de7896546ad8d33f112d041890e95a701",
+    "raw/ndvi.json": "bcf6345be1c3a0f6d4a4c58137aa14e27132caaec963ef88a88784333de9c883",
+    "raw/ndvi.request.json": "03afaed1ac615e6224accaccc089418e4994c1870cc83a1212e3cefade9c45b8",
+    "raw/vegetation.json": "9e085dd8a4d43589b77093bf1ed3bc86600324618341c66eb983c6a850ab0608",
+    "raw/vegetation.request.json": "da6e85ba49b606ba116abe1b1538651baa689ac5454c9db5005b48ba08fd5e2b",
+    "raw/weather.json": "d65e2a2b6639b4cb7960afffe244322dc7b0ac6daec2969d44d76c9e6349c4b8",
+    "raw/weather.request.json": "a74c248bec10e133a1a8c457220069f074966d8ebad2259dec882c5da9ab8630",
+    "satellite.csv": "d8b4eb68cc42d13788e3234a89be0826e50e1bb1d92f4504885fe74d3564ab9f",
+    "weather.csv": "f666e64ea83d38a04f5c718f98e14b81c3ff95bb4845bf8f00c8dc761969644c"
+  }
+}

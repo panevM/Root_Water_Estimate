@@ -5,4 +5,6 @@ __pycache__/
 .env
 outputs/
 data/refresh-*/
+!data/refresh-wheat-2025-90d/
+!data/refresh-wheat-2025-90d/**
 config_my_dataset.json
