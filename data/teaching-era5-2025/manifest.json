@@ -1,0 +1,140 @@
+{
+  "processing_version": "root-zone-water-1",
+  "retrieved_at_utc": "2026-09-10T11:57:03.168905+00:00",
+  "status": "incomplete",
+  "config": {
+    "crop": "wheat",
+    "crop_status": "assumed",
+    "soil": "silt",
+    "irrigation_mode": "assumed_rainfed",
+    "irrigation_status": "assumed_rainfed",
+    "geometry_status": "unverified",
+    "geometry": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [
+            21.43,
+            41.99
+          ],
+          [
+            21.44,
+            41.99
+          ],
+          [
+            21.44,
+            42.0
+          ],
+          [
+            21.43,
+            42.0
+          ],
+          [
+            21.43,
+            41.99
+          ]
+        ]
+      ]
+    },
+    "start_date": "2025-05-01",
+    "end_date": "2025-07-31",
+    "timezone": "UTC",
+    "planting_date": "2025-04-01",
+    "kc_mode": "calendar",
+    "ndvi_max_age_days": 15,
+    "root_depth_scale": 1.0,
+    "precipitation_effectiveness": 1.0,
+    "initial_available_fraction": 0.5,
+    "initial_std_taw_fraction": 0.2886751345948129,
+    "process_std_taw_fraction": 0.02,
+    "proxy_model_std_taw_fraction": 0.2,
+    "ndmi_obs_std": 0.05,
+    "use_spatial_std_heuristic": true,
+    "m_dry": -0.1,
+    "m_wet": 0.45,
+    "clipped_R_multiplier": 2.0,
+    "weather_uncertainty": true,
+    "rain_std_mm": 1.0,
+    "et0_std_mm": 0.5,
+    "min_valid_fraction": 0.5,
+    "min_valid_pixels": 100,
+    "filter": "ekf",
+    "mode": "cached",
+    "cache_dir": "data/teaching-era5-2025",
+    "resolution_m": 20,
+    "projected_epsg": 32634,
+    "weather_model": "era5"
+  },
+  "weather_source": "https://archive-api.open-meteo.com/v1/archive",
+  "satellite_source": "https://sh.dataspace.copernicus.eu/api/v1/statistics",
+  "catalog_source": "https://sh.dataspace.copernicus.eu/catalog/v1/search",
+  "errors": [
+    "Missing SENTINEL_CLIENT_ID / SENTINEL_CLIENT_SECRET; see docs/API_SETUP.md"
+  ],
+  "weather_days": 92,
+  "weather_returned_metadata": {
+    "latitude": 42.0,
+    "longitude": 21.5,
+    "utc_offset_seconds": 0,
+    "timezone": "GMT",
+    "timezone_abbreviation": "GMT",
+    "elevation": 240.0,
+    "daily_units": {
+      "time": "iso8601",
+      "precipitation_sum": "mm",
+      "rain_sum": "mm",
+      "snowfall_sum": "cm",
+      "et0_fao_evapotranspiration": "mm",
+      "temperature_2m_min": "\u00b0C"
+    }
+  },
+  "files_sha256": {
+    "config.snapshot.json": "e58dae1243dc5be2b5667b8e87b9a36cafd56cba376b64181a87fadf8977516c",
+    "geometry.geojson": "f4bbed6827f2bc4c0b4b9f5a963193020dd34bcc80ba119b8a2c1b328857691a",
+    "raw/weather.json": "b816a8d319dd34320e82096a695a10a5a687cadc994a6d8eb8546ed2d96d0dc9",
+    "raw/weather.request.json": "2118718dc4d7470a256e9a1d71e274293cf48d668af605ee3086195694b29aec",
+    "weather.csv": "d73ea36c98a8e0fa93512da17c576c50e29ac3d710610257abfc7443561c20f9"
+  },
+  "grid": {
+    "projected_epsg": 32634,
+    "resolution_m": 20,
+    "polygon_area_m2": 919615.1206054688,
+    "expected_polygon_pixels_approx": 2299.037801513672,
+    "bbox_grid_pixels_approx": 2352,
+    "sample_count_note": "sampleCount includes noDataCount and bounding-grid pixels outside polygon; fractions use that conservative denominator"
+  },
+  "reference_selections": [
+    {
+      "crop": "wheat",
+      "subtype": "spring wheat",
+      "kc_initial": "0.30",
+      "kc_mid": "1.15",
+      "kc_end": "0.25",
+      "initial_days": "20",
+      "development_days": "30",
+      "mid_days": "60",
+      "late_days": "40",
+      "root_depth_m": "1.4",
+      "root_depth_reference_range_m": "1.0-1.5",
+      "p": "0.55",
+      "default_ndvi": "0.60",
+      "source": "https://www.fao.org/4/X0490E/x0490e0b.htm;https://www.fao.org/4/X0490E/x0490e0e.htm",
+      "notes": "FAO56 tables 11/12/22; April Mediterranean small-grain calendar is a teaching assumption; fixed mature effective depth even during development; NDVI-mode intercept is 0.40"
+    },
+    {
+      "soil": "silt",
+      "theta_fc_m3m3": "0.32",
+      "theta_wp_m3m3": "0.15",
+      "theta_sat_m3m3": "0.46",
+      "drainage_fraction_day": "0.10",
+      "source": "https://www.fao.org/4/X0490E/x0490e0e.htm",
+      "notes": "FC/WP reference example36 table19 selections; saturation 0.46 is an explicit teaching porosity assumption; drainage is a fixed teaching value; no field measurements"
+    }
+  ],
+  "reference_tables_sha256": {
+    "crops.csv": "94b27df29c8be9b4b1450a95bd54df2900cd4e59b40bd2ffb82cb8ffa3375e5c",
+    "soils.csv": "e25f9e21f1decc234e0d0eff8eab876dde8fd318c3b3a0d8a4a61e8b7de99724"
+  },
+  "metadata_enriched_at_utc": "2026-09-10T12:09:15.411966+00:00",
+  "metadata_enrichment_note": "Added derived grid and reference provenance after retrieval; raw inputs and original request settings unchanged"
+}

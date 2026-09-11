@@ -1,0 +1,79 @@
+{
+  "processing_version": "root-zone-water-1",
+  "retrieved_at_utc": "2026-09-10T11:54:15.593833+00:00",
+  "status": "incomplete",
+  "config": {
+    "crop": "wheat",
+    "crop_status": "assumed",
+    "soil": "silt",
+    "irrigation_mode": "assumed_rainfed",
+    "irrigation_status": "assumed_rainfed",
+    "geometry_status": "unverified",
+    "geometry": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [
+            21.43,
+            41.99
+          ],
+          [
+            21.44,
+            41.99
+          ],
+          [
+            21.44,
+            42.0
+          ],
+          [
+            21.43,
+            42.0
+          ],
+          [
+            21.43,
+            41.99
+          ]
+        ]
+      ]
+    },
+    "start_date": "2025-05-01",
+    "end_date": "2025-07-31",
+    "timezone": "UTC",
+    "planting_date": "2025-04-01",
+    "kc_mode": "calendar",
+    "ndvi_max_age_days": 15,
+    "root_depth_scale": 1.0,
+    "precipitation_effectiveness": 1.0,
+    "initial_available_fraction": 0.5,
+    "initial_std_taw_fraction": 0.2886751345948129,
+    "process_std_taw_fraction": 0.02,
+    "proxy_model_std_taw_fraction": 0.2,
+    "ndmi_obs_std": 0.05,
+    "use_spatial_std_heuristic": true,
+    "m_dry": -0.1,
+    "m_wet": 0.45,
+    "clipped_R_multiplier": 2.0,
+    "weather_uncertainty": true,
+    "rain_std_mm": 1.0,
+    "et0_std_mm": 0.5,
+    "min_valid_fraction": 0.5,
+    "min_valid_pixels": 100,
+    "filter": "ekf",
+    "mode": "cached",
+    "cache_dir": "data/teaching-2025",
+    "resolution_m": 20,
+    "projected_epsg": 32634,
+    "weather_model": "era5_land"
+  },
+  "weather_source": "https://archive-api.open-meteo.com/v1/archive",
+  "satellite_source": "https://sh.dataspace.copernicus.eu/api/v1/statistics",
+  "catalog_source": "https://sh.dataspace.copernicus.eu/catalog/v1/search",
+  "errors": [
+    "Network/timeout failure at https://archive-api.open-meteo.com/v1/archive",
+    "Missing SENTINEL_CLIENT_ID / SENTINEL_CLIENT_SECRET; see docs/API_SETUP.md"
+  ],
+  "files_sha256": {
+    "config.snapshot.json": "d1246acf210b8227149f70ce578732d0859887fb2d1a84b5d3b5ee73f72791f0",
+    "geometry.geojson": "f4bbed6827f2bc4c0b4b9f5a963193020dd34bcc80ba119b8a2c1b328857691a"
+  }
+}

@@ -1,0 +1,4 @@
+crop,subtype,kc_initial,kc_mid,kc_end,initial_days,development_days,mid_days,late_days,root_depth_m,root_depth_reference_range_m,p,default_ndvi,source,notes
+wheat,spring wheat,0.30,1.15,0.25,20,30,60,40,1.4,1.0-1.5,0.55,0.60,https://www.fao.org/4/X0490E/x0490e0b.htm;https://www.fao.org/4/X0490E/x0490e0e.htm,FAO56 tables 11/12/22; April Mediterranean small-grain calendar is a teaching assumption; fixed mature effective depth even during development; NDVI-mode intercept is 0.40
+maize,field grain maize,0.30,1.20,0.60,30,40,50,30,1.0,1.0-1.7,0.55,0.68,https://www.fao.org/4/X0490E/x0490e0b.htm;https://www.fao.org/4/X0490E/x0490e0e.htm,FAO56 Kc and depth/p; stage days are teaching selections; end Kc depends on harvest moisture
+tomato,field tomato,0.60,1.15,0.80,30,40,40,25,1.0,0.7-1.5,0.40,0.72,https://www.fao.org/4/X0490E/x0490e0b.htm;https://www.fao.org/4/X0490E/x0490e0e.htm,FAO56 Kc and depth/p; stage days are teaching selections; p follows the table22 value 0.40

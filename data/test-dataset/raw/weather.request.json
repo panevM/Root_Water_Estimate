@@ -1,0 +1,9 @@
+{
+  "latitude": 41.995000000000005,
+  "longitude": 21.435000000000002,
+  "start_date": "2026-05-01",
+  "end_date": "2026-07-29",
+  "timezone": "UTC",
+  "models": "era5",
+  "daily": "precipitation_sum,rain_sum,snowfall_sum,et0_fao_evapotranspiration,temperature_2m_min"
+}

@@ -1,0 +1,3 @@
+soil,theta_fc_m3m3,theta_wp_m3m3,theta_sat_m3m3,drainage_fraction_day,source,notes
+silt,0.32,0.15,0.46,0.10,https://www.fao.org/4/X0490E/x0490e0e.htm,FC/WP reference example36 table19 selections; saturation 0.46 is an explicit teaching porosity assumption; drainage is a fixed teaching value; no field measurements
+loamy_sand,0.15,0.06,0.40,0.20,https://www.fao.org/4/X0490E/x0490e0e.htm,FC/WP reference example36 selections; saturation 0.40 and drainage 0.20 are teaching assumptions
