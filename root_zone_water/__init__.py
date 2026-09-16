@@ -1,1 +1,6 @@
-"""Standalone numerical estimator package. Imports never acquire data."""
+"""Пакет за процена на количеството вода во кореновата зона.
+
+config/data ги подготвуваат влезовите, runner го поврзува model со filters
+и proxy, а plotting ги прикажува резултатите. Самото увезување на пакетот
+не презема податоци; мрежниот тек е експлицитно во acquisition.acquire.
+"""

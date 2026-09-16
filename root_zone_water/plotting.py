@@ -1,4 +1,11 @@
-"""Interactive Plotly figures built only from already-computed diagnostics."""
+"""Plotly графици од веќе пресметани влезови и резултати на runner.
+
+Тетратките користат area/inputs и графици за состојби, иновации и чувствителност.
+Функциите враќаат Figure или речник од Figure, без преземање и без повторно
+проценување. Само export_html запишува датотека; прикажувањето го прави
+повикувачот. language='mk' ги избира постојните македонски текстови каде
+се поддржани, а другите вредности ги избираат англиските.
+"""
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -14,6 +21,7 @@ FILTER_STYLES = {
 PLOTLY_CONFIG = {'scrollZoom': True, 'responsive': True, 'displaylogo': False}
 
 def _labels(language):
+    """Врати речник на постојните ознаки за графици според language ('mk' или друго)."""
     if language != 'mk':
         return {'area': 'Configured demonstration area near Skopje', 'weather': 'Weather forcing',
                 'ndvi': 'NDVI observations', 'ndmi': 'NDMI observations', 'kc': 'Crop coefficient',
@@ -30,9 +38,11 @@ def _labels(language):
             'post_storage': 'Корегирана процена W (mm)', 'std': 'Условна σ (mm)'}
 
 def _date(values):
+    """Претвори низа датуми/ISO времиња во pandas датуми за оските, без промена на влезот."""
     return pd.to_datetime(values)
 
 def _base_layout(fig, title, height):
+    """Постави заеднички изглед, title и height во пиксели; измени и врати ја fig."""
     fig.update_layout(title=title, height=height, template='plotly_white', autosize=True,
                       hovermode='x unified', legend=dict(groupclick='togglegroup'),
                       margin=dict(l=70, r=30, t=70, b=55))
@@ -41,6 +51,12 @@ def _base_layout(fig, title, height):
     return fig
 
 def area(c, satellite, language='en'):
+    """Врати график на надворешниот прстен од c['geometry'] во географски степени.
+
+    satellite е табелата од load_data; прифатениот vegetation дава медијански
+    SCL удел како контекст, без идентификација на културата. language избира
+    текстови; влезовите се читаат и нема преземање карта.
+    """
     labels = _labels(language)
     ring = np.array(c['geometry']['coordinates'][0])
     fig = go.Figure(go.Scatter(x=ring[:, 0], y=ring[:, 1], mode='lines+markers',
@@ -59,6 +75,12 @@ def area(c, satellite, language='en'):
     return fig
 
 def inputs(weather, satellite, result, language='en'):
+    """Врати четири панели: дневни врнежи/ET0, прифатени NDVI/NDMI и избраниот Kc.
+
+    weather/satellite се табелите од load_data, а result е усогласен дневен
+    резултат од run. Водните влезови се mm/ден, индексите и Kc се
+    бездимензионални. language избира текстови; не се пополнуваат отсутни снимки.
+    """
     labels = _labels(language)
     fig = make_subplots(rows=4, cols=1, shared_xaxes=True, vertical_spacing=.05,
                         subplot_titles=(labels['weather'], labels['ndvi'], labels['ndmi'], labels['kc']))
@@ -80,7 +102,17 @@ def inputs(weather, satellite, result, language='en'):
     return _base_layout(fig, labels['inputs'], 950)
 
 def states(results, p, language='en'):
-    """Return linked filter panels with conditional bands and observation diagnostics."""
+    """Врати поврзани панели од непразен речник results: име на филтер→DataFrame.
+
+    Тетратките и state_figures предаваат резултати од run и Parameters p
+    за линиите wp, fc−RAW, fc и заситеност. На крајот на секој UTC ден се
+    прикажуваат предвидена процена W_prior_mm и корегирана процена
+    W_posterior_mm, со лента ±2√P_posterior_mm2 во mm. Лентата не се
+    отсекува на физичките граници и е условна на моделските претпоставки.
+    Маркерите се индиректна процена на количеството вода добиена од NDMI,
+    не директни теренски мерења. Дополнителните податоци при посочување
+    вклучуваат иновација, Калманово засилување и √Q_t. language избира текстови.
+    """
     labels = _labels(language)
     fig = make_subplots(rows=len(results), cols=1, shared_xaxes=True, vertical_spacing=.045,
                         subplot_titles=[name.upper() + (' — процена на количеството вода од претпоставките' if language == 'mk' else ' — speculative storage conditional on assumptions') for name in results])
@@ -123,10 +155,20 @@ def states(results, p, language='en'):
     return fig
 
 def state_figures(results, p, language='en'):
-    """Create one independent, single-panel figure per filter."""
+    """Врати име→самостоен Figure преку states за results од compare и Parameters p.
+
+    Тетратките го користат за одделно прикажување/извоз; language се пренесува
+    до states, каде се објаснети процените и лентите во mm.
+    """
     return {name: states({name: result}, p, language=language) for name, result in results.items()}
 
 def innovations(results):
+    """Врати два панели на иновации од results (име→резултат од run).
+
+    Го прескокнува open_loop и деновите без иновација. Првиот панел е
+    innovation_mm со ±2√S во mm; вториот е бездимензионалната иновација/√S.
+    Ова е согласност со индиректната процена од NDMI пред корекција.
+    """
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=.08,
                         subplot_titles=('Pre-correction innovation with ±2√S', 'Standardized innovation'))
     for name, result in results.items():
@@ -145,7 +187,14 @@ def innovations(results):
     return _base_layout(fig, 'Filter innovations', 620)
 
 def innovation_figures(results, language='en'):
-    """Create separate figures for residual magnitude and standardized residuals."""
+    """Врати pre_correction и standardized Figure од речникот results на филтри.
+
+    Тетратките добиваат одделни прикази на иновацијата со ±2√S (mm) и
+    иновација/√S (бездимензионална), без open_loop и без NaN денови.
+    language избира текстови. Тековниот код бара барем една достапна
+    иновација надвор од open_loop за да ги постави насловите во циклусот;
+    ако нема ниту една, локалните title/ylabel остануваат недефинирани.
+    """
     figures = {}
     for key, standardized in (('pre_correction', False), ('standardized', True)):
         fig = go.Figure()
@@ -169,6 +218,12 @@ def innovation_figures(results, language='en'):
     return figures
 
 def sensitivities(runs):
+    """Врати два панели од runs: ознака→DataFrame добиени со runner.sensitivity.
+
+    Прикажува корегирана процена W (mm) и условна стандардна девијација
+    √P (mm) по date. Ознаките на сценаријата се пренесуваат непроменети;
+    нивното постојно обратно означување на Q/R е објаснето во sensitivity.
+    """
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=.08,
                         subplot_titles=('Posterior storage', 'Conditional state uncertainty'))
     for label, result in runs.items():
@@ -180,7 +235,12 @@ def sensitivities(runs):
     return _base_layout(fig, 'Sensitivity comparisons', 700)
 
 def sensitivity_figures(runs, language='en'):
-    """Create separate figures for sensitivity storage and uncertainty."""
+    """Врати posterior_storage и conditional_std Figure за runs од sensitivity.
+
+    Секое сценарио дава линија за корегираната процена или √P, двете во mm,
+    врз истите влезни податоци. language ги избира насловите; нема ново
+    извршување на филтрите или промена на нивните резултати.
+    """
     figures = {}
     for key, uncertainty in (('posterior_storage', False), ('conditional_std', True)):
         fig = go.Figure()
@@ -194,7 +254,12 @@ def sensitivity_figures(runs, language='en'):
     return figures
 
 def export_html(fig, path):
-    """Export a Plotly figure with an embedded local Plotly JavaScript bundle."""
+    """Запиши fig во HTML на path и врати ја излезната Path патека.
+
+    Тетратките го користат за споделување: создава родителски директориуми,
+    заменува постојна датотека и го вградува Plotly JavaScript за локално
+    отворање. Не отвора прелистувач; грешките при запис се пренесуваат.
+    """
     destination = Path(path); destination.parent.mkdir(parents=True, exist_ok=True)
     fig.write_html(destination, include_plotlyjs=True, full_html=True, auto_open=False, config=PLOTLY_CONFIG)
     return destination

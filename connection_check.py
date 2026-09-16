@@ -1,4 +1,11 @@
-"""Small real API response check. No fabricated observations on an empty day."""
+"""Самостојна еднодневна проверка на API преку acquisition.acquire.
+
+CLI бара --date во YYYY-MM-DD и нова --output патека; --env-file по избор
+вчитува пристапни податоци. Ги заменува само датумите од load_config,
+прави вистински мрежни барања и запишува кеш преку acquire. Печати статус,
+мрежа, прифатени NDMI денови и грешки; излезниот код е 0 за complete,
+инаку 2. Празен ден не се пополнува со измислени набљудувања.
+"""
 import argparse
 from root_zone_water.acquisition import acquire
 from root_zone_water.config import load_config

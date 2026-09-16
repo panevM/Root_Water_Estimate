@@ -1,3 +1,13 @@
+"""Читање и проверка на конфигурацијата пред преземање или проценување.
+
+load_config ги проверува поставките; parameters ги поврзува референтните
+табели со model.Parameters. Почетната и процесната стандардна девијација
+се задаваат како дел од TAW во initial_std_taw_fraction/process_std_taw_fraction.
+rain_std_mm и et0_std_mm се метеоролошки неизвесности; ndmi_obs_std,
+proxy_model_std_taw_fraction и clipped_R_multiplier го одредуваат Q_t
+во proxy.from_ndmi. FILTERS во filters/__init__.py ги регистрира класите,
+а дозволените имиња се проверуваат и во овој модул.
+"""
 import csv
 import json
 import math
@@ -8,7 +18,18 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def generate_config(start_date, end_date, filter_name, dataset_path,
                     output_path=None, base_path=None, planting_date=None):
-    """Create a user-run configuration without changing the teaching defaults."""
+    """Состави конфигурација за кориснички податоци, како во тетратките за преземање.
+
+    start_date/end_date се вклучени датуми YYYY-MM-DD; filter_name е ekf,
+    ukf или open_loop. dataset_path е непразна патека до кешот.
+    base_path избира основен JSON (стандардно ROOT/config.json), а
+    planting_date по избор го заменува датумот на садење. Враќа речник
+    со mode='cached'; не ја прави целосната проверка од load_config.
+    Ако има output_path, создава родителски директориуми и запишува/заменува
+    JSON таму. Не менува основна датотека освен ако е избрана како излез.
+    Невалидни датуми, обратен период, име на филтер или празна патека
+    предизвикуваат ValueError; грешки при читање/пишување се пренесуваат.
+    """
     from datetime import date
     allowed = ('ekf', 'ukf', 'open_loop')
     start = date.fromisoformat(str(start_date))
@@ -32,6 +53,18 @@ def generate_config(start_date, end_date, filter_name, dataset_path,
     return config
 
 def load_config(path=None):
+    """Прочитај JSON од path или ROOT/config.json и врати проверен речник.
+
+    Се користи од CLI, тетратките и тестовите. Бара UTC, assumed_rainfed,
+    мрежа од 20 m, подредени NDMI крајни точки во [-1,1] и дозволени
+    режими. Почетниот достапен дел е [0,1]; зададените стандардни девијации
+    како делови од TAW и ndmi_obs_std се позитивни. Метеоролошките
+    стандардни девијации (mm) и максималната старост на NDVI (денови)
+    може да се нула. min_valid_fraction е (0,1], min_valid_pixels≥1,
+    а clipped_R_multiplier≥1 го зголемува Q_t при крајните точки.
+    Крева ValueError за прекршени проверки; недостасувачки клучеви или
+    невалиден JSON не се пополнуваат автоматски. Само чита датотека.
+    """
     c = json.loads(Path(path or ROOT / 'config.json').read_text())
     if c['irrigation_mode'] != 'assumed_rainfed' or c['timezone'] != 'UTC':
         raise ValueError('Teaching runner requires assumed_rainfed and UTC')
@@ -58,10 +91,23 @@ def load_config(path=None):
     return c
 
 def reference(table, key, value):
+    """Врати го првиот CSV ред од references/table со row[key]==value.
+
+    parameters ги бара културата и почвата; полињата остануваат стрингови.
+    Само чита локална датотека; без совпаѓање се пренесува StopIteration.
+    """
     with (ROOT / 'references' / table).open(newline='') as f:
         return next(row for row in csv.DictReader(f) if row[key] == value)
 
 def parameters(c):
+    """Врати (Parameters, ред за култура, ред за почва) од конфигурацијата c.
+
+    runner и acquire ги користат локалните crops.csv/soils.csv. Длабочината
+    во m се множи со root_depth_scale и останува фиксна низ деновите;
+    theta_* се во m³/m³, а p, drainage_fraction и effectiveness се делови.
+    Parameters ги проверува физичките вредности. Само чита референтни
+    табели; не ги менува c или табелите.
+    """
     crop = reference('crops.csv', 'crop', c['crop'])
     soil = reference('soils.csv', 'soil', c['soil'])
     p = Parameters(float(crop['root_depth_m']) * c['root_depth_scale'],

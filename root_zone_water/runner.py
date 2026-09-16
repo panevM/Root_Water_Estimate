@@ -1,4 +1,11 @@
-"""One daily UTC prediction, then at most one sparse scalar correction."""
+"""Поврзување на влезовите, водниот биланс и филтрите во дневен UTC тек.
+
+Почнете со run за избор и иницијализација на филтерот, input_history за
+временското усогласување и proxy.from_ndmi за набљудувањето во mm.
+FILTERS е регистарот во filters/__init__.py; математиката е во filters/scalar.py
+и model.py. compare и sensitivity повторуваат пресметки врз исти влезови,
+а main чита податоци и запишува CSV резултати.
+"""
 import argparse
 import json
 from pathlib import Path
@@ -11,6 +18,23 @@ from .model import budget, calendar_kc, ndvi_kc, finite_difference_derivative, w
 from .proxy import from_ndmi
 
 def input_history(weather, satellite, c):
+    """Подготви дневни влезови за run, без промена на влезните DataFrame табели.
+
+    weather мора да ги покрива сите датуми YYYY-MM-DD од c со валидно време
+    без снег/мраз; satellite има најмногу еден ред по ден со независни
+    ndvi_accepted и ndmi_accepted ознаки. Дупликати на ден или идентитет
+    на продукт, набљудување надвор од периодот и невалидно време на прифатена
+    снимка предизвикуваат ValueError. Времето мора да има временска зона
+    и да припаѓа во дневниот UTC интервал [почеток, следна полноќ).
+
+    Враќа листа речници со метеоролошките полиња, kc, stage, kc_source,
+    ndvi_input_age_days, observation и границите interval_*_utc во ISO формат.
+    Kc прво доаѓа од календарот; во режим ndvi може да го замени последниот
+    прифатен NDVI со возраст од 0 до ndvi_max_age_days на почетокот на денот.
+    Тековниот NDVI се памети дури по составување на денешниот ред, па влијае
+    најрано следниот ден. Стар/отсутен NDVI значи calendar_fallback.
+    NDMI не се пренесува во следни денови: observation е празен ако нема ред.
+    """
     weather = validate_weather(weather.copy(),c)
     sat = satellite.copy().sort_values('date')
     if sat['date'].duplicated().any(): raise ValueError('Duplicate satellite day; composite before running')
@@ -50,6 +74,44 @@ def input_history(weather, satellite, c):
     return history
 
 def run(weather,satellite,c,filter_name=None):
+    """Изврши дневна процена и врати DataFrame со состојби и дијагностика.
+
+    weather и satellite се табелите од data.load_data; c е проверена
+    конфигурација. filter_name го надвладува c['filter']; FILTERS го избира
+    класното име (непознат клуч крева KeyError). Еден објект f се создава
+    пред циклусот со μ_0=wp+initial_available_fraction·TAW,
+    Σ_0=(initial_std_taw_fraction·TAW)² и граници [0,заситеност].
+    Истиот f ја задржува процената од претходниот ден.
+
+    Секој ден: земи ја старата процена, пресметај физички биланс и R_t,
+    повикај predict, па најмногу еднаш update со прифатен NDMI претворен
+    во mm. Прифатена снимка во текот на денот се користи за корекција на
+    крајот на денот; тоа е временска апроксимација, без поддневен премин.
+    Без прифатен NDMI има само предвидување, без измислено набљудување.
+    За open_loop се пресметува индиректната процена и иновацијата кога
+    се достапни, но update никогаш не се повикува и updated останува False.
+
+    Коваријансата на шумот на процесот е
+    R_t=(process_std_taw_fraction·TAW)², во mm², за отстапувања на моделот.
+    Со weather_uncertainty се додаваат (∂g/∂rain)²·rain_std_mm² и
+    (∂g/∂ET0)²·et0_std_mm², без вкрстена коваријанса. Овие изводи се
+    нумерички, при фиксно before, и се mm/mm. rain_std_mm и et0_std_mm
+    се неизвесности во mm, а rain и et0 се самите дневни влезни вредности.
+    Тука нема посебен пренос на неизвесноста на Kc или на почвените параметри.
+
+    W_prior_mm/P_prior_mm2 се μ̄_t/Σ̄_t, а W_posterior_mm/P_posterior_mm2
+    се μ_t/Σ_t по можната корекција. start_storage_mm/start_P_mm2 се
+    претходните вредности. predicted_proxy_mm=μ̄_t бидејќи h(W)=W.
+    process_covariance_Rt_mm2 и measurement_covariance_Qt_mm2 се R_t и Q_t;
+    innovation_mm, S_mm2 и gain ги следат равенките во ScalarFilter.update.
+    Без набљудување недостапните дијагностики се NaN.
+    distribution_prediction_adjustment_mm е μ̄_t−g(before), што кај UKF
+    ја вклучува разликата од преносот на распределбата; assimilation_adjustment_mm
+    е μ_t−μ̄_t, вклучувајќи евентуална проекција по корекција. Овие промени
+    не се физички водни текови. flux полињата се опишани во model.budget.
+    Функцијата чита локални референтни табели преку parameters, но не
+    презема податоци, не запишува резултати и не ги менува влезните табели.
+    """
     p,_,_ = parameters(c)
     name = filter_name or c['filter']
     f = FILTERS[name](p.wp+c['initial_available_fraction']*p.taw,
@@ -57,18 +119,18 @@ def run(weather,satellite,c,filter_name=None):
     records = []
     for row in input_history(weather,satellite,c):
         before,before_p = f.result()
-        # In a validated snow-free interval total precipitation includes liquid showers too.
+        # Вкупните врнежи во проверениот период без снег ги вклучуваат и пороите.
         rain,et0,kc = row['precipitation_mm'],row['et0_mm'],row['kc']
         transition = lambda w: budget(w,rain,et0,kc,p)[0]
         physical,flux = budget(before,rain,et0,kc,p)
-        # Process covariance R_t: model discrepancy plus optional weather uncertainty.
+        # R_t: коваријанса на шумот на процесот, со опционална неизвесност на времето.
         process_covariance = (c['process_std_taw_fraction']*p.taw)**2
         df_dp = df_det = 0.0
         if c['weather_uncertainty']:
             df_dp = finite_difference_derivative(lambda v:budget(before,v,et0,kc,p)[0],rain,p.taw,0)
             df_det = finite_difference_derivative(lambda v:budget(before,rain,v,kc,p)[0],et0,p.taw,0)
             process_covariance += df_dp**2*c['rain_std_mm']**2 + df_det**2*c['et0_std_mm']**2
-        # Prediction: the filter now has mu_bar_t and Sigma_bar_t.
+        # По predict, објектот ги чува μ̄_t и Σ̄_t за тековниот ден.
         prediction = (f.predict(transition,process_covariance,p.taw,
                                 state_jacobian=water_balance_jacobian(before,rain,et0,kc,p))
                       if name in ('ekf','open_loop') else
@@ -80,7 +142,7 @@ def run(weather,satellite,c,filter_name=None):
         usable = bool(obs.get('ndmi_accepted',False))
         updated = usable and name != 'open_loop'
         if usable:
-            # Measurement covariance Q_t belongs to the speculative proxy, not raw NDMI.
+            # Q_t е коваријанса на шумот на мерењето за индиректната процена во mm.
             detail.update(from_ndmi(obs['ndmi'],obs.get('ndmi_spatial_std'),p,c))
             detail['observation_age_days'] = (pd.Timestamp(row['interval_end_utc'])-pd.Timestamp(obs['acquisition_time_utc'])).total_seconds()/86400
             detail.update(innovation_mm=detail['proxy_mm']-prior,S_mm2=prior_p+detail['measurement_covariance_Qt_mm2'])
@@ -98,9 +160,26 @@ def run(weather,satellite,c,filter_name=None):
     return pd.DataFrame(records)
 
 def compare(weather,satellite,c):
+    """Врати речник име→DataFrame за open_loop, ekf и ukf со исти влезови.
+
+    main и тетратките го повикуваат со табели од load_data и конфигурација c.
+    Секој run создава сопствен филтер; овој список не се проширува автоматски
+    при додавање класа во FILTERS. Не запишува датотеки.
+    """
     return {name:run(weather,satellite,c,name) for name in ('open_loop','ekf','ukf')}
 
 def sensitivity(weather,satellite,c):
+    """Врати речник сценарио→EKF резултат за истите табели weather и satellite.
+
+    Тетратките ги прикажуваат сценаријата преку plotting; c се копира со
+    измена на по една претпоставка. Постојната ознака 'Q variance x4'
+    всушност ја зголемува основната коваријанса на шумот на процесот R_t
+    четирипати, без метеоролошкиот додаток. 'R larger' ја удвојува само
+    стандардната девијација на врската NDMI→W, дел од коваријансата на
+    шумот на мерењето Q_t. Ознаките ја користат обратната нотација од курсот.
+    Резултатите покажуваат чувствителност на претпоставки, не точност спрема
+    теренски мерења. Влезните податоци и c не се менуваат.
+    """
     changes = {'baseline':{},'Q variance x4':{'process_std_taw_fraction':c['process_std_taw_fraction']*2},
                'R larger':{'proxy_model_std_taw_fraction':c['proxy_model_std_taw_fraction']*2},
                'initial mean wetter':{'initial_available_fraction':.75},
@@ -110,6 +189,14 @@ def sensitivity(weather,satellite,c):
     return {label:run(weather,satellite,c|change,'ekf') for label,change in changes.items()}
 
 def diagnostics(results):
+    """Сумирај речник име→резултат од run во DataFrame за main и тетратките.
+
+    proxy_pairs брои достапни иновации, corrections вистински корекции,
+    prior_proxy_MAE_mm/RMSE_mm се отстапувања од индиректната процена
+    во mm, а max_physical_balance_error_mm е најголем апсолутен остаток
+    на физичкиот биланс. Првите две грешки се NaN без парови и не се
+    валидација со теренска вистина; парови може да има и за open_loop.
+    """
     rows = []
     for name,result in results.items():
         innovations = result['innovation_mm'].dropna()
@@ -121,6 +208,13 @@ def diagnostics(results):
     return pd.DataFrame(rows)
 
 def main():
+    """CLI влез: читај --config и запиши споредба во --output (стандардно outputs).
+
+    Создава директориум и запишува/заменува CSV за трите филтри и diagnostics,
+    па печати резиме. load_data го следи режимот од конфигурацијата;
+    main не задава destination, па режим api таму крева ValueError.
+    Не користи docstring за argparse помош.
+    """
     parser=argparse.ArgumentParser()
     parser.add_argument('--config')
     parser.add_argument('--output',default='outputs')

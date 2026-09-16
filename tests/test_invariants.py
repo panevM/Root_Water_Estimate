@@ -1,4 +1,9 @@
-"""Small analytic fixtures only; never published as observation data."""
+"""Постојни pytest проверки на моделот, филтрите и обработката на податоци.
+
+Малите вештачки примери служат само за проверка на равенки и гранични
+случаи; не се набљудувани податоци. Мрежните повици се заменуваат во
+соодветните тестови, а проверката на кешот користи локални податоци.
+"""
 import copy
 import json
 import socket
@@ -14,20 +19,29 @@ from root_zone_water.data import load_data, satellite_table, weather_table
 from root_zone_water.runner import run, input_history
 
 @pytest.fixture
-def c(): return load_config()
+def c():
+    """Дај ја локалната стандардна конфигурација како pytest фикстура за секој тест."""
+    return load_config()
 
 def fixture_weather(c,n=3):
+    """Врати (копија на c, временска табела) за n денови од мај 2025, без мрежа.
+
+    n задава валиден мајски краен ден; количините се mm/ден, снегот cm,
+    температурата °C. Константниот пример е само за тестирање.
+    """
     c=c|{'start_date':'2025-05-01','end_date':f'2025-05-{n:02d}'}
     w=pd.DataFrame(dict(date=pd.date_range(c['start_date'],c['end_date']).strftime('%Y-%m-%d'),
                         precipitation_mm=0.,rain_mm=0.,snowfall_cm=0.,et0_mm=4.,temperature_min_c=10.))
     return c,w
 
 def fixture_sat():
+    """Врати тест-табела со една прифатена NDVI/NDMI снимка на 1 мај во 10:00 UTC."""
     return pd.DataFrame([dict(date='2025-05-01',ndvi=.7,ndmi=.2,ndmi_spatial_std=np.nan,
                              ndvi_accepted=True,ndmi_accepted=True,observation_id='unit-fixture',
                              acquisition_time_utc='2025-05-01T10:00:00Z',rejection_reason='')])
 
 def test_generate_config_writes_dataset_selection(tmp_path):
+    """Провери избор на кеш/филтер и JSON запис во привремениот pytest tmp_path."""
     output = tmp_path / 'custom-config.json'
     config = generate_config('2025-06-01', '2025-06-30', 'ukf', 'data/student-set', output_path=output)
     saved = json.loads(output.read_text(encoding='utf-8'))
@@ -39,6 +53,7 @@ def test_generate_config_writes_dataset_selection(tmp_path):
     assert saved['mode'] == 'cached'
 
 def test_root_scaling_stress_accounting(c):
+    """Со конфигурацијата c провери скалирање на mm/mm² со длабочината и TAW идентитети."""
     p,_,_=parameters(c); p2,_,_=parameters(c|{'root_depth_scale':2})
     assert p2.fc==2*p.fc and p2.wp==2*p.wp and p2.taw==2*p.taw
     assert stress(p.wp,p)==0 and stress(p.fc-p.raw,p)==pytest.approx(1)
@@ -50,6 +65,7 @@ def test_root_scaling_stress_accounting(c):
 @pytest.mark.parametrize('w_fraction',[0,.2,.6,1])
 @pytest.mark.parametrize('rain',[0,30,2000])
 def test_budget_conserves(c,w_fraction,rain):
+    """Провери биланс и граници за дел w_fraction од заситеноста и rain во mm, според c."""
     p,_,_=parameters(c)
     value,flux=budget(w_fraction*p.saturation,rain,1000,1.15,p)
     assert abs(flux['balance_error_mm'])<1e-10
@@ -57,6 +73,7 @@ def test_budget_conserves(c,w_fraction,rain):
     assert flux['eta_mm']>=0 and flux['drainage_mm']>=0 and flux['overflow_mm']>=0
 
 def test_linear_case_and_course_covariance():
+    """Провери EKF/UKF на линеарен премин, скаларна корекција и невалидни коваријанси."""
     for cls in (EKF,UKF):
         f=cls(10,4)
         if cls is EKF:
@@ -73,6 +90,7 @@ def test_linear_case_and_course_covariance():
         with pytest.raises(ValueError): f.predict(lambda x:x,-1)
 
 def test_water_balance_jacobian_smooth_branch(c):
+    """Спореди аналитички G_t со централна разлика во мазна гранка за параметрите од c."""
     p,_,_=parameters(c)
     w = p.wp + .4*p.taw
     rain, et0, kc = 2., 3., 1.
@@ -82,12 +100,18 @@ def test_water_balance_jacobian_smooth_branch(c):
     assert analytic == pytest.approx(numeric,abs=1e-8)
 
 def test_water_balance_jacobian_threshold_convention(c):
+    """Провери ги конвенциите кај заситеност и wp со параметрите од c.
+
+    Овие две проверки не го покриваат горниот праг на Ks, каде изводот
+    го зема ограничениот дел Ks=1, а не гранката со помало W.
+    """
     p,_,_=parameters(c)
-    # Exact caps use the documented lower-storage branch convention.
+    # Тука се проверуваат само точно заситување и точката на венеење.
     assert water_balance_jacobian(p.saturation,0.,4.,1.,p) == pytest.approx(.9)
     assert water_balance_jacobian(p.wp,0.,4.,1.,p) == pytest.approx(1.)
 
 def test_daily_once_no_forward_fill_causal(c):
+    """Провери една корекција, причински избор на Kc и одбивање дупликати со тест-копија на c."""
     c,w=fixture_weather(c); c['kc_mode']='ndvi'
     s=fixture_sat(); r=run(w,s,c)
     assert len(r)==3 and r['updated'].sum()==1
@@ -105,6 +129,7 @@ def test_daily_once_no_forward_fill_causal(c):
         assert other.loc[0,'proxy_mm']==r.loc[0,'proxy_mm']
 
 def test_ndvi_and_ndmi_independent(c):
+    """Провери независни NDVI/NDMI патишта и календар при застарен NDVI според c."""
     c,w=fixture_weather(c); s=fixture_sat()
     s['ndmi_accepted']=False; s['ndmi']=np.nan
     r=run(w,s,c|{'kc_mode':'ndvi'})
@@ -115,6 +140,7 @@ def test_ndvi_and_ndmi_independent(c):
     assert run(w,s,c|{'kc_mode':'ndvi'})['kc_source'].eq('calendar_fallback').all()
 
 def test_proxy_censoring_and_missing_std(c):
+    """Провери позитивно Q_t, отсекување и отфрлање NaN NDMI со параметрите од c."""
     p,_,_=parameters(c)
     r=from_ndmi(.2,None,p,c)['measurement_covariance_Qt_mm2']
     assert r>0
@@ -124,12 +150,14 @@ def test_proxy_censoring_and_missing_std(c):
     with pytest.raises(ValueError): from_ndmi(np.nan,None,p,c)
 
 def test_calendar_boundaries(c):
+    """Провери Kc на датуми од фазите и одбивање ден надвор од календарот зададен со c."""
     _,crop,_=parameters(c)
     assert calendar_kc('2025-04-01',c['planting_date'],crop)==(.3,'initial')
     assert calendar_kc('2025-05-21',c['planting_date'],crop)==(1.15,'mid')
     with pytest.raises(ValueError): calendar_kc('2025-01-01',c['planting_date'],crop)
 
 def test_request_metric_polygon_full_end(c):
+    """Провери тело на барање од c: цел краен ден, метрички полигон, мрежа и канали; без мрежа."""
     body=statistics_request(c,'ndmi')
     assert interval(c)[1]=='2025-07-30T00:00:00Z'
     assert body['aggregation']['resx']==body['aggregation']['resy']==20
@@ -140,6 +168,7 @@ def test_request_metric_polygon_full_end(c):
     assert 's.B8A-s.B11' in body['aggregation']['evalscript']
 
 def test_cloud_rejection_catalog_duplicate(c):
+    """Со тест-одговори и c провери мала покриеност и дупликати на каталог/статистика."""
     c=c|{'start_date':'2025-05-01','end_date':'2025-05-01'}
     item={'interval':{'from':'2025-05-01T00:00:00Z','to':'2025-05-02T00:00:00Z'},
           'outputs':{'value':{'bands':{'B0':{'stats':{'mean':.2,'stDev':.1,'sampleCount':2400,'noDataCount':2300}}}}}}
@@ -152,6 +181,7 @@ def test_cloud_rejection_catalog_duplicate(c):
     with pytest.raises(ValueError): satellite_table(raws,[f],c)
 
 def test_grid_counts_and_acquisition_ambiguity(c):
+    """Провери прифаќање еден момент и одбивање повеќе моменти/неверојатен број пиксели според c."""
     c=c|{'start_date':'2025-05-01','end_date':'2025-05-01'}
     item={'interval':{'from':'2025-05-01T00:00:00.000Z','to':'2025-05-02T00:00:00.000Z'},
           'outputs':{'value':{'bands':{'B0':{'stats':{'mean':.2,'stDev':.1,'sampleCount':2400,'noDataCount':10}}}}}}
@@ -164,6 +194,7 @@ def test_grid_counts_and_acquisition_ambiguity(c):
     with pytest.raises(ValueError,match='metric grid'): satellite_table(raws,[f],c)
 
 def test_ukf_bounds_and_water_adjustments(c):
+    """Провери отсечени UKF точки, проекција и раздвојување на физички/филтерски промени со c."""
     p,_,_=parameters(c)
     f=UKF(p.wp,4*p.saturation**2,(0,p.saturation))
     info=f.predict(lambda x:budget(x,0,4,1.15,p)[0],9,p.taw)
@@ -176,7 +207,10 @@ def test_ukf_bounds_and_water_adjustments(c):
                                result['distribution_prediction_adjustment_mm']+result['assimilation_adjustment_mm'])
 
 def test_offline_cache_and_repeatability(c,monkeypatch):
-    def forbidden(*args,**kwargs): raise AssertionError('Offline mode attempted network')
+    """Прочитај кеш од c и провери дневни резултати со monkeypatch што забранува мрежа."""
+    def forbidden(*args,**kwargs):
+        """Отфрли секој socket.connect повик, независно од неговите аргументи."""
+        raise AssertionError('Offline mode attempted network')
     monkeypatch.setattr(socket.socket,'connect',forbidden)
     w,s,m=load_data(c)
     r=run(w,s,c)
@@ -184,15 +218,19 @@ def test_offline_cache_and_repeatability(c,monkeypatch):
     assert r['irrigation_mm'].eq(0).all()
 
 def test_token_reuse(monkeypatch):
+    """Со pytest monkeypatch замени тајни и HTTP функција и провери повторна употреба на токен."""
     monkeypatch.setenv('SENTINEL_CLIENT_ID','unit-fixture')
     monkeypatch.setenv('SENTINEL_CLIENT_SECRET','unit-fixture')
     calls=[]
-    def fake(*a,**k): calls.append(1); return {'access_token':'fixture','expires_in':300}
+    def fake(*a,**k):
+        """Изброј повик во calls и врати тест-токен со рок 300 s; HTTP аргументите се игнорираат."""
+        calls.append(1); return {'access_token':'fixture','expires_in':300}
     monkeypatch.setattr('root_zone_water.acquisition.request_json',fake)
     client=SentinelClient()
     assert client.headers()==client.headers() and len(calls)==1
 
 def test_missing_weather_snow_and_timestamp(c):
+    """Со тест-копии на c провери отфрлање празно време, снег, мраз и снимка на погрешен ден."""
     c,w=fixture_weather(c); s=fixture_sat()
     for col,value in [('precipitation_mm',np.nan),('snowfall_cm',1),('temperature_min_c',-1)]:
         broken=w.copy(); broken.loc[0,col]=value
